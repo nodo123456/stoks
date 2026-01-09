@@ -8,93 +8,49 @@ This guide documents how to set up a Dockerized Interactive Brokers (IBKR) Gatew
 -   **IBKR Paper Trading Account** credentials.
 
 ## 2. Project Structure
-Ensure your project has the following structure:
+The project is split into two microservices:
 ```
-/project-root
-  ├── docker-compose.yml   # Defines the IBKR container
-  ├── .env                 # Stores sensitive credentials (TWS_USERID, etc.)
-  ├── requirements.txt     # Python dependencies (ib_insync, pandas)
-  ├── connect_ibkr.py      # Python client script
-  └── ibkr_config/         # Local folder for persisting TWS settings (Auto-created)
+/stocks
+  ├── gateway/
+  │   ├── docker-compose.yml   # Runs the IBKR Gateway
+  │   ├── .env                 # Credentials
+  │   └── ibkr_config/         # Persisted settings
+  │
+  └── app/
+      ├── docker-compose.yml   # Runs the Client App
+      ├── Dockerfile
+      ├── src/
+      │   ├── connect_ibkr.py
+      │   └── requirements.txt
+      └── balance.txt          # Output file
 ```
 
-## 3. Configuration
+## 3. Usage
+We use a shared network (`trading-net`) so the app can talk to the gateway.
 
-### `.env` File
-Create a `.env` file with your credentials:
+### One-Time Network Setup
 ```bash
-TWS_USERID=your_paper_username
-TWS_PASSWORD=your_paper_password
-TRADING_MODE=paper
-VNC_SERVER_PASSWORD=password
+docker network create trading-net
 ```
 
-### `docker-compose.yml`
-Ensure the `volumes` section is enabled to save settings to your local machine:
-```yaml
-services:
-  ibkr:
-    image: ghcr.io/extrange/ibkr:latest
-    container_name: ibkr-gateway
-    environment:
-      - USERNAME=${TWS_USERID}
-      - PASSWORD=${TWS_PASSWORD}
-      - TRADING_MODE=${TRADING_MODE:-paper}
-      - VNC_SERVER_PASSWORD=${VNC_SERVER_PASSWORD:-password}
-    ports:
-      - "7497:7497"  # API Port
-      - "6080:6080"  # VNC (GUI) Port
-    volumes:
-      - ./ibkr_config:/root/Jts # CRITICAL: Persists settings
-```
-
-## 4. Initial Setup (The "One-Time" Fix)
-This step is only required the **first time** you set this up or if you wipe the `ibkr_config` folder.
-
-1.  **Start Docker**:
-    ```bash
-    docker-compose up -d
-    ```
-2.  **Access VNC**:
-    Open your browser to `http://localhost:6080`.
-    Password: `password` (or whatever you set in `.env`).
-
-3.  **Handle Popups**:
-    -   Wait for the login to complete.
-    -   Dismiss any "Market Data" or "Safety" popups.
-
-4.  **Configure API (Crucial!)**:
-    -   In the TWS window, go to **File > Global Configuration > API > Settings**.
-    -   **Enable ActiveX and Socket Clients**: CHECKED.
-    -   **Allow connections from localhost only**: **UNCHECKED**.
-    -   **Trusted IPs**:
-        -   Click "Create" and add `0.0.0.0` (This allows Docker network connections).
-        -   Alternatively, add your specific Docker Gateway IP if `0.0.0.0` feels too permissive, but `0.0.0.0` is easiest for local dev.
-    -   Click **Apply** and **OK**.
-
-**Note on Persistence**: Because we mounted the volume (`./ibkr_config`), these settings are now saved to your hard drive. You can restart the container without losing them.
-
-## 5. Connecting with Python
-
-### Install Dependencies
+### Step 1: Start the Gateway
 ```bash
-pip install -r requirements.txt
+cd gateway
+docker-compose up -d
 ```
-*(Requires `ib_insync` and `pandas`)*
+*Wait for it to fully start (check http://localhost:6080).*
 
-### Run the Script
+### Step 2: Start the App
 ```bash
-python connect_ibkr.py
+cd ../app
+docker-compose up --build -d
 ```
+The app will connect automatically and save output to `app/db/`:
+- `balance.txt`: Current account balance.
+- `logs/run_YYYY-MM-DD_HH-MM-SS.log`: Detailed execution log for this specific run.
 
-### Connection Code Snippet
-The script connects to port `7497` (typical for Paper Trading) or `7496` (Live Trading).
-```python
-from ib_insync import *
-ib = IB()
-# Connect to the local Docker container on port 7497 (Paper)
-ib.connect('127.0.0.1', 7497, clientId=1)
-```
+
+
 
 ## 6. Troubleshooting
 

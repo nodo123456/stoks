@@ -1,5 +1,6 @@
-.env
+gateway/.env
 .venv/
 __pycache__/
 *.csv
 ibkr_config/
+app/db/

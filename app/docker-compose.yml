@@ -1,0 +1,14 @@
+services:
+  client:
+    build: .
+    container_name: ibkr-client
+    environment:
+      - IBKR_HOST=ibkr-gateway
+    volumes:
+      - ./:/app
+    networks:
+      - trading-net
+
+networks:
+  trading-net:
+    external: true

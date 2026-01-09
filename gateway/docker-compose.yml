@@ -6,15 +6,15 @@ services:
       - USERNAME=${TWS_USERID}
       - PASSWORD=${TWS_PASSWORD}
       - TRADING_MODE=${TRADING_MODE:-paper}
-      - IBC_TradingMode=${IBC_TradingMode:-paper}
       - VNC_SERVER_PASSWORD=${VNC_SERVER_PASSWORD:-password}
-      - TWOFA_TIMEOUT=${TWOFA_TIMEOUT:-45}
     ports:
-      - "4001:4001"
-      - "4002:4002"
-      - "7496:7496"
       - "7497:7497"
-      - "6080:6080" # NoVNC Web Interface
-    restart: unless-stopped
+      - "6080:6080"
     volumes:
       - ./ibkr_config:/root/Jts
+    networks:
+      - trading-net
+
+networks:
+  trading-net:
+    external: true
